@@ -1,18 +1,18 @@
 package sqlite
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"time"
 
-	"github.com/jmoiron/sqlx"
-	jsoniter "github.com/json-iterator/go"
 	"github.com/go-oauth2/oauth2/v4"
 	"github.com/go-oauth2/oauth2/v4/models"
+	jsoniter "github.com/json-iterator/go"
 )
 
 type ClientStore struct {
-	db        *sqlx.DB
+	db        *sql.DB
 	tableName string
 
 	initTableDisabled bool
@@ -30,7 +30,7 @@ type ClientStoreItem struct {
 }
 
 // NewClientStore creates PostgreSQL store instance
-func NewClientStore(db *sqlx.DB, options ...ClientStoreOption) (*ClientStore, error) {
+func NewClientStore(db *sql.DB, options ...ClientStoreOption) (*ClientStore, error) {
 
 	store := &ClientStore{
 		db:           db,
@@ -90,13 +90,14 @@ func (s *ClientStore) toClientInfo(data string) (oauth2.ClientInfo, error) {
 }
 
 // GetByID retrieves and returns client information by id
-func (s *ClientStore) GetByID(id string) (oauth2.ClientInfo, error) {
+// GetByID(ctx context.Context, id string) (ClientInfo, error)
+func (s *ClientStore) GetByID(ctx context.Context, id string) (oauth2.ClientInfo, error) {
 	if id == "" {
 		return nil, nil
 	}
 
 	var item ClientStoreItem
-	err := s.db.QueryRowx(fmt.Sprintf("SELECT * FROM %s WHERE id = ?", s.tableName), id).StructScan(&item)
+	err := s.db.QueryRow(fmt.Sprintf("SELECT id,secret,domain,data FROM %s WHERE id = ?", s.tableName), id).Scan(&item.ID, &item.Secret, &item.Domain, &item.Data)
 	switch {
 	case err == sql.ErrNoRows:
 		return nil, nil
